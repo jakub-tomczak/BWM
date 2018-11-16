@@ -3,10 +3,10 @@
 solveProblem <- function(model){
   assert(!is.null(model), 'Model cannot be null')
   solutionFromModel <- solveLP(model)
-  weights <- getWeights(solutionFromModel, model)
-  ranking <- getRanking(model, weights)
+  #weights <- getWeights(solutionFromModel, model)
+  #ranking <- getRanking(model, weights)
 
-  result <- list(weights = weights, ranking = ranking['ix'], alternativesValues = ranking['x'])
+  #result <- list(weights = weights, ranking = ranking['ix'], alternativesValues = ranking['x'])
 }
 
 getRanking <- function(model, weights){
