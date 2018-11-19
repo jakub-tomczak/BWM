@@ -139,9 +139,17 @@ createModelsObjective <- function(model, objectiveIndex, objectiveValue = 1){
 }
 
 #' @export
-buildModel <- function(bestToOthers, worstToOthers, alternatives){
+buildModel <- function(bestToOthers, worstToOthers, alternatives, dontCreateMultipleOptimalSolutions = TRUE, rankBasedOnCenterOfInterval = FALSE){
   model <- validateData(bestToOthers, worstToOthers, alternatives)
   model$isConsistent <- isConsistent(model)
+
+  # when true, calculated weights are always scalars, not intervals
+  model$dontCreateMultipleOptimalSolutions = dontCreateMultipleOptimalSolutions
+
+  # flag used in getRanking function, when creating final ranking,
+  # indicates whether or not to rank by the center of intervals
+  # if not, rank based on the interval weights
+  model$rankBasedOnCenterOfInterval <- rankBasedOnCenterOfInterval
 
   #weights' sum and weights' limit value (w >= 0)
   constraints <- list()
@@ -156,58 +164,42 @@ buildModel <- function(bestToOthers, worstToOthers, alternatives){
       constraints <- result$constraints
     }
   }  else {
-    #add best-to-others constraints
-    result <- createBaseModelConstraints(model, constraints, vectorType = "best", modelType = "inconsistent_final", dir = "<=", ksiIndexValue = -1)
-    constraints <- addConstraintsFromResult(constraints, result)
+    if(model$dontCreateMultipleOptimalSolutions){
+      #add best-to-others constraints
+      result <- createBaseModelConstraints(model, constraints, vectorType = "best", modelType = "inconsistent_final", dir = "<=", ksiIndexValue = -1)
+      constraints <- addConstraintsFromResult(constraints, result)
 
-    #add others-to-worst constraints
-    result <- createBaseModelConstraints(model, constraints, vectorType = "worst", modelType = "inconsistent_final", dir = "<=", ksiIndexValue = -1)
-    constraints <- addConstraintsFromResult(constraints, result)
+      #add others-to-worst constraints
+      result <- createBaseModelConstraints(model, constraints, vectorType = "worst", modelType = "inconsistent_final", dir = "<=", ksiIndexValue = -1)
+      constraints <- addConstraintsFromResult(constraints, result)
 
-    constraints_2 <- buildBasicConstraints(model)
-    for(constraint in constraints_2){
-      constraints <- combineConstraints(constraints, constraint)$constraints
-    }
+      constraints_2 <- buildBasicConstraints(model)
+      for(constraint in constraints_2){
+        constraints <- combineConstraints(constraints, constraint)$constraints
+      }
 
-    model$constraints = constraintsListToMatrix(constraints)
-    model$objective <- createModelsObjective(model, model$ksiIndex)
-    #minimize objective's value
-    model$maximize <- FALSE
-
-    model$ksiValue <- solveProblem(model)$optimum
-
-    # find minimal values
-
-    #constraints sum of weights to 1, all weights non-negative
-    constraints <- buildBasicConstraints(model)
-
-    #add best-to-others constraints
-    result <- createBaseModelConstraints(model, constraints, vectorType = "best", modelType = "inconsistent_auxiliary", dir = "<=", rhs = .032639)
-    constraints <- addConstraintsFromResult(constraints, result)
-
-    #add others-to-worst constraints
-    result <- createBaseModelConstraints(model, constraints, vectorType = "worst", modelType = "inconsistent_auxiliary", dir = "<=", rhs = .032639)
-    constraints <- addConstraintsFromResult(constraints, result)
-
-    model$constraints = constraintsListToMatrix(constraints)
-    model$maximize <- FALSE
-    for(i in seq(5)){
-      model$objective <- createModelsObjective(model, i)
+      model$constraints = constraintsListToMatrix(constraints)
+      model$objective <- createModelsObjective(model, model$ksiIndex)
       #minimize objective's value
-      result <- solveProblem(model)
-      result
+      model$maximize <- FALSE
 
+      model$ksiValue <- solveLP(model)$optimum
+
+      # find minimal values
+
+      #constraints sum of weights to 1, all weights non-negative
+      constraints <- buildBasicConstraints(model)
+
+      #add best-to-others constraints
+      result <- createBaseModelConstraints(model, constraints, vectorType = "best", modelType = "inconsistent_auxiliary", dir = "<=", rhs = model$ksiValue)
+      constraints <- addConstraintsFromResult(constraints, result)
+
+      #add others-to-worst constraints
+      result <- createBaseModelConstraints(model, constraints, vectorType = "worst", modelType = "inconsistent_auxiliary", dir = "<=", rhs = model$ksiValue)
+      constraints <- addConstraintsFromResult(constraints, result)
+    } else {
+      stop("Calculating weights as intervals is not implemented yet.")
     }
-    model$maximize <- TRUE
-    for(i in seq(5)){
-      model$objective <- createModelsObjective(model, i)
-      #minimize objective's value
-      result <- solveProblem(model)
-      result
-
-    }
-#może inny solver i dlatego inny wynik delikatnie
-
   }
 
   model$constraints = constraintsListToMatrix(constraints)

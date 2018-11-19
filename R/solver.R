@@ -23,10 +23,6 @@ solveProblem <- function(model){
 
       list(lowerBound, upperBound)
     })
-    # flag used in getRanking function, when creating final ranking,
-    # indicates whether or not to rank by the center of intervals
-    # if not, rank based on the interval weights
-    model$rankBasedOnCenterOfInterval <- rankBasedOnCenterOfInterval
   }
 
   ranking <- getRanking(model, weights)
