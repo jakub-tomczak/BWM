@@ -25,16 +25,13 @@ solveProblem <- function(model){
     })
   }
 
-  ranking <- getRanking(model, weights)
-  result <- list(weights = weights, ranking = ranking['ix'], alternativesValues = ranking['x'])
+  #ranking <- getRanking(model, weights)
+  result <- list(criteriaNames, criteriaWeights = weights)
 }
 
 getRanking <- function(model, weights){
   if(model$isConsistent || (!model$isConsistent && !model$createMultipleOptimalSolutions)){
-    alternativesValues <- apply(model$alternatives, MARGIN = 1, function(x){
-      sum(x*weights)
-    })
-    sort(alternativesValues, decreasing = TRUE, index.return=TRUE)
+    sorted <- sort(weights, decreasing = TRUE, index.return=TRUE)
   } else {
     if(model$rankBasedOnCenterOfInterval){
       # TODO: rank the criteria or alternatives based on the center of intervals
@@ -49,9 +46,11 @@ getRanking <- function(model, weights){
       })
       P_ij <- ifelse(DJ_ij > .5, 1, 0)
       rank <- apply(P, MARGIN = 1, function(x){sum(x)})
-      sort(rank, index.return=TRUE)
+      sorted <- sort(rank, index.return=TRUE)
     }
   }
+  sorted$ix <- model$criteriaNames[sorted$ix]
+  sorted
 }
 
 solveLP <- function(model){

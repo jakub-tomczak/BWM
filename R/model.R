@@ -1,11 +1,11 @@
-validateData <- function(bestToOthers, worstToOthers, alternatives){
+validateData <- function(bestToOthers, worstToOthers, criteriaNames){
   assert(length(bestToOthers) > 1, "Length of the best-to-others or worst-to-others vector should have at least 2 elements.")
   assert(length(bestToOthers) == length(worstToOthers), "Lengths of best-to-others and others-to-worst vectors must be the same.")
-  assert(ncol(alternatives) == length(bestToOthers), "Number of criteria over alternatives must match size of the best-to-others vector.")
+  assert(length(bestToOthers) == length(criteriaNames), "Lengths of best-to-others and criteriaNames must be the same.")
   bestToOthersOneIndex <- match(1, bestToOthers)
   worstToOthersOneIndex <- match(1, worstToOthers)
   assert(!is.na(bestToOthersOneIndex) && !is.na(worstToOthersOneIndex), "bestToOthers and worstToOthers vectors must contain number `1`.")
-  list(bestToOthers = bestToOthers, worstToOthers = worstToOthers, alternatives = alternatives)
+  list(bestToOthers = bestToOthers, worstToOthers = worstToOthers, criteriaNames = criteriaNames)
 }
 
 isConsistent <- function(model){
@@ -13,7 +13,7 @@ isConsistent <- function(model){
   bestOverWorstPreferenceValue <- model$bestToOthers[worstCriterionIndex]
 
   # a_bj x a_jw = a_bw for all j
-  all(bestToOthers*worstToOthers == bestOverWorstPreferenceValue)
+  list(isConsistent = all(bestToOthers*worstToOthers == bestOverWorstPreferenceValue), a_bw = bestOverWorstPreferenceValue)
 }
 # tries to combine constraint, if constraint already belongs to the constraints set then
 # it resturns constraints and a flag that indicates that constraints' state hasn't been changed
@@ -136,9 +136,11 @@ createModelsObjective <- function(model, objectiveIndex, objectiveValue = 1){
 }
 
 #' @export
-buildModel <- function(bestToOthers, worstToOthers, alternatives, createMultipleOptimalSolutions = FALSE, rankBasedOnCenterOfInterval = FALSE){
-  model <- validateData(bestToOthers, worstToOthers, alternatives)
-  model$isConsistent <- isConsistent(model)
+buildModel <- function(bestToOthers, worstToOthers, criteriaNames, createMultipleOptimalSolutions = FALSE, rankBasedOnCenterOfInterval = FALSE){
+  model <- validateData(bestToOthers, worstToOthers, criteriaNames)
+  consistency <- isConsistent(model)
+  model$isConsistent <- consistency$isConsistent
+  model$a_bw <- consistency$a_bw
 
   # when true, calculated weights are always scalars, not intervals
   model$createMultipleOptimalSolutions = createMultipleOptimalSolutions
