@@ -41,9 +41,8 @@ absConstraint <- function(constraint){
 
 # creates constraints, for each j, for w_b - a_bj*w_j or for w_j-a_jw*w_w
 # first equation referes to the best-to-others vector, the second one to the others-to-worst vector
-createBaseModelConstraints <- function(model, constraints, vectorType, modelType, dir, rhs = 0, ksiIndexValue = 0){
+createBaseModelConstraints <- function(model, constraints, vectorType, dir, rhs = 0, ksiIndexValue = 0){
   assert(vectorType %in% c("best", "worst"), "vectorType should be either 'best' or 'worst'.")
-  assert(modelType %in% c("inconsistent_final", "inconsistent_auxiliary"), "methodType should be either 'inconsistent_final' or 'inconsistent_auxiliary'.")
   vector <- if(vectorType == "best") model$bestToOthers else model$worstToOthers
 
   # weight that has a number 1 on its index in the vector
@@ -53,8 +52,6 @@ createBaseModelConstraints <- function(model, constraints, vectorType, modelType
   # number of added constraints is
   # useful for creating constraints opposite to these ones
   numberOfAddedConstraints <-0
-
-  additionalKsiValue <- ifelse(modelType == "inconsistent_final", 0, model$ksiValue)
 
   for(j in seq(length(vector))){
     if(j != weightWithOneIndex){
@@ -139,12 +136,12 @@ createModelsObjective <- function(model, objectiveIndex, objectiveValue = 1){
 }
 
 #' @export
-buildModel <- function(bestToOthers, worstToOthers, alternatives, dontCreateMultipleOptimalSolutions = TRUE, rankBasedOnCenterOfInterval = FALSE){
+buildModel <- function(bestToOthers, worstToOthers, alternatives, createMultipleOptimalSolutions = FALSE, rankBasedOnCenterOfInterval = FALSE){
   model <- validateData(bestToOthers, worstToOthers, alternatives)
   model$isConsistent <- isConsistent(model)
 
   # when true, calculated weights are always scalars, not intervals
-  model$dontCreateMultipleOptimalSolutions = dontCreateMultipleOptimalSolutions
+  model$createMultipleOptimalSolutions = createMultipleOptimalSolutions
 
   # flag used in getRanking function, when creating final ranking,
   # indicates whether or not to rank by the center of intervals
@@ -152,7 +149,7 @@ buildModel <- function(bestToOthers, worstToOthers, alternatives, dontCreateMult
   model$rankBasedOnCenterOfInterval <- rankBasedOnCenterOfInterval
 
   #weights' sum and weights' limit value (w >= 0)
-  constraints <- list()
+  constraints <- buildBasicConstraints(model)
 
   # ksi index
   model$ksiIndex <- length(model$bestToOthers)+1
@@ -164,19 +161,21 @@ buildModel <- function(bestToOthers, worstToOthers, alternatives, dontCreateMult
       constraints <- result$constraints
     }
   }  else {
-    if(model$dontCreateMultipleOptimalSolutions){
       #add best-to-others constraints
-      result <- createBaseModelConstraints(model, constraints, vectorType = "best", modelType = "inconsistent_final", dir = "<=", ksiIndexValue = -1)
+      result <- createBaseModelConstraints(model, constraints, vectorType = "best", dir = "<=", ksiIndexValue = -1)
       constraints <- addConstraintsFromResult(constraints, result)
 
       #add others-to-worst constraints
-      result <- createBaseModelConstraints(model, constraints, vectorType = "worst", modelType = "inconsistent_final", dir = "<=", ksiIndexValue = -1)
+      result <- createBaseModelConstraints(model, constraints, vectorType = "worst", dir = "<=", ksiIndexValue = -1)
       constraints <- addConstraintsFromResult(constraints, result)
 
-      constraints_2 <- buildBasicConstraints(model)
-      for(constraint in constraints_2){
-        constraints <- combineConstraints(constraints, constraint)$constraints
-      }
+
+    if(model$createMultipleOptimalSolutions){
+      # here we should calculate only ksi value that will be used to
+      # create model, which is used to determine lower and upper bounds
+      # of the interval weights
+      # however, current implementation is wrong
+      stop("Calculating weights as intervals is not implemented yet.")
 
       model$constraints = constraintsListToMatrix(constraints)
       model$objective <- createModelsObjective(model, model$ksiIndex)
@@ -184,21 +183,18 @@ buildModel <- function(bestToOthers, worstToOthers, alternatives, dontCreateMult
       model$maximize <- FALSE
 
       model$ksiValue <- solveLP(model)$optimum
-
       # find minimal values
 
       #constraints sum of weights to 1, all weights non-negative
       constraints <- buildBasicConstraints(model)
 
       #add best-to-others constraints
-      result <- createBaseModelConstraints(model, constraints, vectorType = "best", modelType = "inconsistent_auxiliary", dir = "<=", rhs = model$ksiValue)
+      result <- createBaseModelConstraints(model, constraints, vectorType = "best", dir = "<=", rhs = model$ksiValue)
       constraints <- addConstraintsFromResult(constraints, result)
 
       #add others-to-worst constraints
-      result <- createBaseModelConstraints(model, constraints, vectorType = "worst", modelType = "inconsistent_auxiliary", dir = "<=", rhs = model$ksiValue)
+      result <- createBaseModelConstraints(model, constraints, vectorType = "worst", dir = "<=", rhs = model$ksiValue)
       constraints <- addConstraintsFromResult(constraints, result)
-    } else {
-      stop("Calculating weights as intervals is not implemented yet.")
     }
   }
 

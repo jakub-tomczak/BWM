@@ -2,7 +2,7 @@
 #' @export
 solveProblem <- function(model){
   assert(!is.null(model), 'Model cannot be null')
-  if(model$isConsistent){
+  if(model$isConsistent || (!model$isConsistent && !model$createMultipleOptimalSolutions)){
     #unique optimal solution
     weights <- solveLP(model)$solution[1:model$ksiIndex-1]
   } else {
@@ -30,7 +30,7 @@ solveProblem <- function(model){
 }
 
 getRanking <- function(model, weights){
-  if(model$isConsistent){
+  if(model$isConsistent || (!model$isConsistent && !model$createMultipleOptimalSolutions)){
     alternativesValues <- apply(model$alternatives, MARGIN = 1, function(x){
       sum(x*weights)
     })
