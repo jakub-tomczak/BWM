@@ -21,13 +21,12 @@ getRanking <- function(model, weights){
 }
 
 solveLP <- function(model){
-  Rglpk_solve_LP(model$objective, model$constraints$lhs, model$constraints$dir, model$constraints$rhs, max = model$maximize,
-                            types = model$constraints$variablesType)
+  Rglpk_solve_LP(model$objective, model$constraints$lhs, model$constraints$dir, model$constraints$rhs, max = model$maximize)
 }
 
 getWeights <- function(lpSolution, model) {
   if(model$isConsistent){
-    lpSolution$solution[1:model$zetaIndex-1]
+    lpSolution$solution[1:model$ksiIndex-1]
   } else {
     NULL
   }
