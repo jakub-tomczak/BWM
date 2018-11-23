@@ -2,9 +2,12 @@
 #' @export
 solveProblem <- function(model){
   assert(!is.null(model), 'Model cannot be null')
+  consistencyIndex <- c(0, .44, 1.0, 1.63, 2.3, 3., 3.73, 4.47, 5.23)
   if(model$isConsistent || (!model$isConsistent && !model$createMultipleOptimalSolutions)){
     #unique optimal solution
-    weights <- solveLP(model)$solution[1:model$ksiIndex-1]
+    result <- solveLP(model)
+    weights <- result$solution[1:model$ksiIndex-1]
+    consistencyRatio <- result$solution[model$ksiIndex] / consistencyIndex[as.integer(model$a_bw)]
   } else {
     #multi-optimality, get intervals
     nrCriteria <- length(model$bestToOthers)
@@ -23,10 +26,11 @@ solveProblem <- function(model){
 
       list(lowerBound, upperBound)
     })
+    consistencyRatio <- model$ksiValue / consistencyIndex[as.integer(model$a_bw)]
   }
 
   #ranking <- getRanking(model, weights)
-  result <- list(criteriaNames, criteriaWeights = weights)
+  result <- list(criteriaNames, criteriaWeights = weights, consistencyRatio = consistencyRatio)
 }
 
 getRanking <- function(model, weights){
