@@ -135,7 +135,6 @@ createModelsObjective <- function(model, objectiveIndex, objectiveValue = 1){
   objective
 }
 
-#' @export
 buildModel <- function(bestToOthers, worstToOthers, criteriaNames, createMultipleOptimalSolutions = FALSE, rankBasedOnCenterOfInterval = FALSE){
   model <- validateData(bestToOthers, worstToOthers, criteriaNames)
   consistency <- isConsistent(model)

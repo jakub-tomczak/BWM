@@ -1,7 +1,7 @@
 #' @import Rglpk
 #' @export
-solveProblem <- function(model){
-  assert(!is.null(model), 'Model cannot be null')
+calculateWeights <- function(criteriaNames, bestToOthers, worstToOthers){
+  model <- buildModel(bestToOthers, worstToOthers, criteriaNames)
   consistencyIndex <- c(0, .44, 1.0, 1.63, 2.3, 3., 3.73, 4.47, 5.23)
   if(model$isConsistent || (!model$isConsistent && !model$createMultipleOptimalSolutions)){
     #unique optimal solution
@@ -30,7 +30,8 @@ solveProblem <- function(model){
   }
 
   #ranking <- getRanking(model, weights)
-  result <- list(criteriaNames, criteriaWeights = weights, consistencyRatio = consistencyRatio)
+  result <- list(criteriaNames = criteriaNames, criteriaWeights = weights, consistencyRatio = consistencyRatio)
+  list(result = result, model = model)
 }
 
 getRanking <- function(model, weights){
