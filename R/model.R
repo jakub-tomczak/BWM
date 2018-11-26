@@ -76,7 +76,7 @@ createBaseModelConstraints <- function(model, constraints, vectorType, dir, rhs 
       }
     }
   }
-  list(constraints = constraints, addedNumber = numberOfAddedConstraints)
+  list(constraints = constraints, numberOfAddedConstraints = numberOfAddedConstraints)
 }
 
 #constraints for weights' sum and their minimal value (w >= 0)
@@ -102,11 +102,12 @@ buildBasicConstraints <- function(model){
 }
 
 addConstraintsFromResult <- function(constraints, result){
-  if(result$addedNumber > 0){
+  if(result$numberOfAddedConstraints > 0){
     constraints <- result$constraints
-    #add constraints that arise from removing abs
-    #get all constraints that have just been added and multiply them by -1
-    constraintsToScale <- tail(constraints, n=result$addedNumber)
+    # add constraints that stem from removing abs
+    # take only result$numberOfAddedConstraints constraints that has just been added (there may have been some duplicates)
+    # and multiply them by -1
+    constraintsToScale <- tail(constraints, n=result$numberOfAddedConstraints)
     lapply(constraintsToScale, function(x){
       constraints <<- combineConstraints(constraints, absConstraint(x))$constraints # '<<-' refers to outer scope
     })
@@ -158,7 +159,7 @@ buildModel <- function(bestToOthers, worstToOthers, criteriaNames, createMultipl
   if(model$isConsistent){
     #add best-to-others constraints
     result <- createBaseModelConstraints(model, constraints, vectorType = "best", dir = "==")
-    if(result$addedNumber > 0){
+    if(result$numberOfAddedConstraints > 0){
       constraints <- result$constraints
     }
   }  else {
@@ -169,39 +170,11 @@ buildModel <- function(bestToOthers, worstToOthers, criteriaNames, createMultipl
       #add others-to-worst constraints
       result <- createBaseModelConstraints(model, constraints, vectorType = "worst", dir = "<=", ksiIndexValue = -1)
       constraints <- addConstraintsFromResult(constraints, result)
-
-
-    if(model$createMultipleOptimalSolutions){
-      # here we should calculate only ksi value that will be used to
-      # create model, which is used to determine lower and upper bounds
-      # of the interval weights
-      # however, current implementation is wrong
-      stop("Calculating weights as intervals is not implemented yet.")
-
-      model$constraints = constraintsListToMatrix(constraints)
-      model$objective <- createModelsObjective(model, model$ksiIndex)
-      #minimize objective's value
-      model$maximize <- FALSE
-
-      model$ksiValue <- solveLP(model)$optimum
-      # find minimal values
-
-      #constraints sum of weights to 1, all weights non-negative
-      constraints <- buildBasicConstraints(model)
-
-      #add best-to-others constraints
-      result <- createBaseModelConstraints(model, constraints, vectorType = "best", dir = "<=", rhs = model$ksiValue)
-      constraints <- addConstraintsFromResult(constraints, result)
-
-      #add others-to-worst constraints
-      result <- createBaseModelConstraints(model, constraints, vectorType = "worst", dir = "<=", rhs = model$ksiValue)
-      constraints <- addConstraintsFromResult(constraints, result)
-    }
   }
 
   model$constraints = constraintsListToMatrix(constraints)
   model$objective <- createModelsObjective(model, model$ksiIndex)
-  #minimize objective's value
+  #minimize objective's value by default
   model$maximize <- FALSE
 
   model
