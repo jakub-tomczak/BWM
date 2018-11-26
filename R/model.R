@@ -1,23 +1,31 @@
-validateData <- function(bestToOthers, worstToOthers, criteriaNames){
-  assert(length(bestToOthers) > 1, "Length of the best-to-others or worst-to-others vector should have at least 2 elements.")
-  assert(length(bestToOthers) == length(worstToOthers), "Lengths of best-to-others and others-to-worst vectors must be the same.")
+validateData <- function(bestToOthers, othersToWorst, criteriaNames){
+  assert(length(bestToOthers) > 1, "Length of the best-to-others or others-to-worst vector should have at least 2 elements.")
+  assert(length(bestToOthers) == length(othersToWorst), "Lengths of best-to-others and others-to-worst vectors must be the same.")
   assert(length(bestToOthers) == length(criteriaNames), "Lengths of best-to-others and criteriaNames must be the same.")
+  assert(1 %in% bestToOthers, "best-to-others vector should contain number 1.")
+  assert(1 %in% othersToWorst, "others-to-worst vector should contain number 1.")
+  assert(all(bestToOthers >= 1) && all(bestToOthers <= 9), "Numbers in best-to-others vector should be in range <1, 9>.")
+  assert(all(othersToWorst >= 1) && all(othersToWorst <= 9), "Numbers in others-to-worst vector should be in range <1, 9>.")
   bestToOthersOneIndex <- match(1, bestToOthers)
-  worstToOthersOneIndex <- match(1, worstToOthers)
-  assert(!is.na(bestToOthersOneIndex) && !is.na(worstToOthersOneIndex), "bestToOthers and worstToOthers vectors must contain number `1`.")
-  list(bestToOthers = bestToOthers, worstToOthers = worstToOthers, criteriaNames = criteriaNames)
+  othersToWorstOneIndex <- match(1, othersToWorst)
+  assert(!is.na(bestToOthersOneIndex) && !is.na(othersToWorstOneIndex), "best-to-others and others-to-worst vectors must contain number `1`.")
+  list(bestToOthers = bestToOthers, othersToWorst = othersToWorst, criteriaNames = criteriaNames)
 }
 
 isConsistent <- function(model){
-  worstCriterionIndex <- match(1, model$worstToOthers)
+  worstCriterionIndex <- match(1, model$othersToWorst)
   bestOverWorstPreferenceValue <- model$bestToOthers[worstCriterionIndex]
 
   # a_bj x a_jw = a_bw for all j
-  list(isConsistent = all(model$bestToOthers*model$worstToOthers == bestOverWorstPreferenceValue), a_bw = bestOverWorstPreferenceValue)
+  list(isConsistent = all(model$bestToOthers*model$othersToWorst == bestOverWorstPreferenceValue), a_bw = bestOverWorstPreferenceValue)
 }
 # tries to combine constraint, if constraint already belongs to the constraints set then
 # it resturns constraints and a flag that indicates that constraints' state hasn't been changed
 combineConstraints <- function(constraints, constraint){
+  assert(!is.null(constraint$lhs), "Constraint should contain lhs vector")
+  assert(!is.null(constraint$rhs), "Constraint should contain rhs vector")
+  assert(!is.null(constraint$dir), "Constraint should contain direction sign")
+  assert(constraint$dir %in% c("<=", "==", ">="), "Constraint should be one of the following `<=, ==, >=`")
   index <- length(constraints)+1
   #return when such constraint is already in constraints list
   for(x in constraints){
@@ -43,7 +51,7 @@ absConstraint <- function(constraint){
 # first equation referes to the best-to-others vector, the second one to the others-to-worst vector
 createBaseModelConstraints <- function(model, constraints, vectorType, dir, rhs = 0, ksiIndexValue = 0){
   assert(vectorType %in% c("best", "worst"), "vectorType should be either 'best' or 'worst'.")
-  vector <- if(vectorType == "best") model$bestToOthers else model$worstToOthers
+  vector <- if(vectorType == "best") model$bestToOthers else model$othersToWorst
 
   # weight that has a number 1 on its index in the vector
   # should be ommited
@@ -136,19 +144,11 @@ createModelsObjective <- function(model, objectiveIndex, objectiveValue = 1){
   objective
 }
 
-buildModel <- function(bestToOthers, worstToOthers, criteriaNames, createMultipleOptimalSolutions = FALSE, rankBasedOnCenterOfInterval = FALSE){
-  model <- validateData(bestToOthers, worstToOthers, criteriaNames)
+buildModel <- function(bestToOthers, othersToWorst, criteriaNames){
+  model <- validateData(bestToOthers, othersToWorst, criteriaNames)
   consistency <- isConsistent(model)
   model$isConsistent <- consistency$isConsistent
   model$a_bw <- consistency$a_bw
-
-  # when true, calculated weights are always scalars, not intervals
-  model$createMultipleOptimalSolutions = createMultipleOptimalSolutions
-
-  # flag used in getRanking function, when creating final ranking,
-  # indicates whether or not to rank by the center of intervals
-  # if not, rank based on the interval weights
-  model$rankBasedOnCenterOfInterval <- rankBasedOnCenterOfInterval
 
   #weights' sum and weights' limit value (w >= 0)
   constraints <- buildBasicConstraints(model)
