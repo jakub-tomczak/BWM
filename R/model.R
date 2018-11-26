@@ -13,7 +13,7 @@ isConsistent <- function(model){
   bestOverWorstPreferenceValue <- model$bestToOthers[worstCriterionIndex]
 
   # a_bj x a_jw = a_bw for all j
-  list(isConsistent = all(bestToOthers*worstToOthers == bestOverWorstPreferenceValue), a_bw = bestOverWorstPreferenceValue)
+  list(isConsistent = all(model$bestToOthers*model$worstToOthers == bestOverWorstPreferenceValue), a_bw = bestOverWorstPreferenceValue)
 }
 # tries to combine constraint, if constraint already belongs to the constraints set then
 # it resturns constraints and a flag that indicates that constraints' state hasn't been changed
